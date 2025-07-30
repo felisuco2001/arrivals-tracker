@@ -319,8 +319,8 @@
     </div>
 
     <script>
-        // Configuración de la API (reemplaza con tu endpoint real)
-        const API_BASE_URL = 'https://tu-api-endpoint.com'; // Cambiar por tu URL real
+        // Configuración de la API
+        const API_BASE_URL = 'https://tu-arrivals-api.vercel.app'; // Cambiar por tu URL real de Vercel o Railway
         
         let chart = null;
 
@@ -361,8 +361,8 @@
             submitBtn.disabled = true;
             
             try {
-                // Simular llamada a API (reemplazar con llamada real)
-                await simulateApiCall({
+                // Llamar a la API real
+                await callApi({
                     fecha: fecha,
                     tipo: tipo,
                     tiempo: parseInt(tiempo)
@@ -392,35 +392,23 @@
             }, 5000);
         }
 
-        // Simular llamada a API (reemplazar con llamada real)
-        async function simulateApiCall(data) {
-            return new Promise((resolve, reject) => {
-                setTimeout(() => {
-                    // Simular éxito en el 90% de los casos
-                    if (Math.random() > 0.1) {
-                        // Guardar en localStorage para la simulación
-                        const stored = JSON.parse(localStorage.getItem('travelData') || '[]');
-                        
-                        // Verificar si ya existe un registro para ese día y tipo
-                        const existingIndex = stored.findIndex(item => 
-                            item.fecha === data.fecha && item.tipo === data.tipo
-                        );
-                        
-                        if (existingIndex >= 0) {
-                            // Actualizar registro existente
-                            stored[existingIndex] = data;
-                        } else {
-                            // Agregar nuevo registro
-                            stored.push(data);
-                        }
-                        
-                        localStorage.setItem('travelData', JSON.stringify(stored));
-                        resolve(data);
-                    } else {
-                        reject(new Error('Error de conexión con la base de datos'));
-                    }
-                }, 1000);
+        // Llamada real a la API
+        async function callApi(data) {
+            const response = await fetch(`${API_BASE_URL}/api/arrivals`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
             });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.message || 'Error en la API');
+            }
+            
+            return result;
         }
 
         // Cargar datos del gráfico
@@ -429,8 +417,8 @@
             loading.style.display = 'block';
             
             try {
-                // Simular carga de datos (reemplazar con llamada real a la API)
-                const data = await simulateLoadData();
+                // Cargar datos reales de la API
+                const data = await loadApiData();
                 
                 updateStats(data);
                 renderChart(data);
@@ -442,46 +430,16 @@
             }
         }
 
-        // Simular carga de datos
-        async function simulateLoadData() {
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    const stored = JSON.parse(localStorage.getItem('travelData') || '[]');
-                    
-                    // Generar algunos datos de ejemplo si no hay datos
-                    if (stored.length === 0) {
-                        const exampleData = [];
-                        const today = new Date();
-                        
-                        for (let i = 30; i >= 0; i--) {
-                            const date = new Date(today);
-                            date.setDate(date.getDate() - i);
-                            const dateStr = date.toISOString().split('T')[0];
-                            
-                            if (Math.random() > 0.3) { // 70% probabilidad de tener datos
-                                exampleData.push({
-                                    fecha: dateStr,
-                                    tipo: 'ida',
-                                    tiempo: Math.floor(Math.random() * 30) + 20
-                                });
-                                
-                                if (Math.random() > 0.2) { // 80% probabilidad de tener vuelta
-                                    exampleData.push({
-                                        fecha: dateStr,
-                                        tipo: 'vuelta',
-                                        tiempo: Math.floor(Math.random() * 35) + 25
-                                    });
-                                }
-                            }
-                        }
-                        
-                        localStorage.setItem('travelData', JSON.stringify(exampleData));
-                        resolve(exampleData);
-                    } else {
-                        resolve(stored);
-                    }
-                }, 1000);
-            });
+        // Cargar datos reales de la API
+        async function loadApiData() {
+            const response = await fetch(`${API_BASE_URL}/api/arrivals`);
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.message || 'Error al cargar datos');
+            }
+            
+            return result.data;
         }
 
         // Actualizar estadísticas
@@ -648,15 +606,12 @@
             });
         }
 
-        // Cargar datos iniciales para el gráfico
+        // Auto-cargar estadísticas al cargar la página
         document.addEventListener('DOMContentLoaded', function() {
-            // Auto-cargar estadísticas si hay datos
-            const stored = JSON.parse(localStorage.getItem('travelData') || '[]');
-            if (stored.length > 0) {
-                setTimeout(() => {
-                    loadChartData();
-                }, 500);
-            }
+            // Intentar cargar datos automáticamente
+            setTimeout(() => {
+                loadChartData();
+            }, 500);
         });
     </script>
 </body>
