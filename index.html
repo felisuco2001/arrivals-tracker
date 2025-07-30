@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arrivals Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            transition: all 0.3s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: -1px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 5px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        input[type="date"], input[type="number"], select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        input[type="date"]:focus, input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-align: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .tab {
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚗 Arrivals Tracker</h1>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('insert')">Registrar Tiempo</button>
+            <button class="tab" onclick="switchTab('chart')">Ver Estadísticas</button>
+        </div>
+
+        <div id="insert-tab" class="tab-content active">
+            <div id="message"></div>
+            
+            <form id="arrival-form">
+                <div class="form-group">
+                    <label for="fecha">📅 Fecha:</label>
+                    <input type="date" id="fecha" name="fecha" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tipo">🔄 Tipo de Viaje:</label>
+                    <select id="tipo" name="tipo" required>
+                        <option value="">Seleccionar...</option>
+                        <option value="ida">🏃‍♂️ Ida</option>
+                        <option value="vuelta">🏠 Vuelta</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tiempo">⏱️ Tiempo (minutos):</label>
+                    <input type="number" id="tiempo" name="tiempo" min="1" max="999" required placeholder="Ej: 45">
+                </div>
+                
+                <button type="submit" class="btn">
+                    <span id="btn-text">Registrar Tiempo</span>
+                    <div id="btn-loading" class="loading" style="display: none;">
+                        <div class="spinner"></div>
+                    </div>
+                </button>
+            </form>
+        </div>
+
+        <div id="chart-tab" class="tab-content">
+            <div class="stats" id="stats-container"></div>
+            
+            <button class="btn" onclick="loadChartData()" style="margin-bottom: 20px;">
+                📊 Cargar Estadísticas
+            </button>
+            
+            <div id="chart-loading" class="loading">
+                <div class="spinner"></div>
+                <p>Cargando datos...</p>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="travelChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de la API (reemplaza con tu endpoint real)
+        const API_BASE_URL = 'https://tu-api-endpoint.com'; // Cambiar por tu URL real
+        
+        let chart = null;
+
+        // Establecer fecha actual por defecto
+        document.getElementById('fecha').valueAsDate = new Date();
+
+        // Manejo de tabs
+        function switchTab(tabName) {
+            // Actualizar botones
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Actualizar contenido
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        // Manejo del formulario
+        document.getElementById('arrival-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fecha = document.getElementById('fecha').value;
+            const tipo = document.getElementById('tipo').value;
+            const tiempo = document.getElementById('tiempo').value;
+            
+            if (!fecha || !tipo || !tiempo) {
+                showMessage('Por favor, completa todos los campos.', 'error');
+                return;
+            }
+            
+            // Mostrar loading
+            const btnText = document.getElementById('btn-text');
+            const btnLoading = document.getElementById('btn-loading');
+            const submitBtn = document.querySelector('button[type="submit"]');
+            
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'block';
+            submitBtn.disabled = true;
+            
+            try {
+                // Simular llamada a API (reemplazar con llamada real)
+                await simulateApiCall({
+                    fecha: fecha,
+                    tipo: tipo,
+                    tiempo: parseInt(tiempo)
+                });
+                
+                showMessage(`✅ Tiempo de ${tipo} registrado correctamente para el ${fecha}`, 'success');
+                document.getElementById('arrival-form').reset();
+                document.getElementById('fecha').valueAsDate = new Date();
+                
+            } catch (error) {
+                showMessage(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                // Ocultar loading
+                btnText.style.display = 'block';
+                btnLoading.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Función para mostrar mensajes
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
+            
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        // Simular llamada a API (reemplazar con llamada real)
+        async function simulateApiCall(data) {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    // Simular éxito en el 90% de los casos
+                    if (Math.random() > 0.1) {
+                        // Guardar en localStorage para la simulación
+                        const stored = JSON.parse(localStorage.getItem('travelData') || '[]');
+                        
+                        // Verificar si ya existe un registro para ese día y tipo
+                        const existingIndex = stored.findIndex(item => 
+                            item.fecha === data.fecha && item.tipo === data.tipo
+                        );
+                        
+                        if (existingIndex >= 0) {
+                            // Actualizar registro existente
+                            stored[existingIndex] = data;
+                        } else {
+                            // Agregar nuevo registro
+                            stored.push(data);
+                        }
+                        
+                        localStorage.setItem('travelData', JSON.stringify(stored));
+                        resolve(data);
+                    } else {
+                        reject(new Error('Error de conexión con la base de datos'));
+                    }
+                }, 1000);
+            });
+        }
+
+        // Cargar datos del gráfico
+        async function loadChartData() {
+            const loading = document.getElementById('chart-loading');
+            loading.style.display = 'block';
+            
+            try {
+                // Simular carga de datos (reemplazar con llamada real a la API)
+                const data = await simulateLoadData();
+                
+                updateStats(data);
+                renderChart(data);
+                
+            } catch (error) {
+                showMessage(`❌ Error al cargar datos: ${error.message}`, 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // Simular carga de datos
+        async function simulateLoadData() {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    const stored = JSON.parse(localStorage.getItem('travelData') || '[]');
+                    
+                    // Generar algunos datos de ejemplo si no hay datos
+                    if (stored.length === 0) {
+                        const exampleData = [];
+                        const today = new Date();
+                        
+                        for (let i = 30; i >= 0; i--) {
+                            const date = new Date(today);
+                            date.setDate(date.getDate() - i);
+                            const dateStr = date.toISOString().split('T')[0];
+                            
+                            if (Math.random() > 0.3) { // 70% probabilidad de tener datos
+                                exampleData.push({
+                                    fecha: dateStr,
+                                    tipo: 'ida',
+                                    tiempo: Math.floor(Math.random() * 30) + 20
+                                });
+                                
+                                if (Math.random() > 0.2) { // 80% probabilidad de tener vuelta
+                                    exampleData.push({
+                                        fecha: dateStr,
+                                        tipo: 'vuelta',
+                                        tiempo: Math.floor(Math.random() * 35) + 25
+                                    });
+                                }
+                            }
+                        }
+                        
+                        localStorage.setItem('travelData', JSON.stringify(exampleData));
+                        resolve(exampleData);
+                    } else {
+                        resolve(stored);
+                    }
+                }, 1000);
+            });
+        }
+
+        // Actualizar estadísticas
+        function updateStats(data) {
+            const statsContainer = document.getElementById('stats-container');
+            
+            const idaData = data.filter(item => item.tipo === 'ida');
+            const vueltaData = data.filter(item => item.tipo === 'vuelta');
+            
+            const avgIda = idaData.length > 0 ? 
+                Math.round(idaData.reduce((sum, item) => sum + item.tiempo, 0) / idaData.length) : 0;
+            
+            const avgVuelta = vueltaData.length > 0 ? 
+                Math.round(vueltaData.reduce((sum, item) => sum + item.tiempo, 0) / vueltaData.length) : 0;
+            
+            const totalDays = new Set(data.map(item => item.fecha)).size;
+            
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${avgIda}</div>
+                    <div class="stat-label">Min Promedio Ida</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgVuelta}</div>
+                    <div class="stat-label">Min Promedio Vuelta</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalDays}</div>
+                    <div class="stat-label">Días Registrados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${data.length}</div>
+                    <div class="stat-label">Total Viajes</div>
+                </div>
+            `;
+        }
+
+        // Renderizar gráfico
+        function renderChart(data) {
+            const ctx = document.getElementById('travelChart').getContext('2d');
+            
+            // Procesar datos por fecha
+            const groupedData = {};
+            data.forEach(item => {
+                if (!groupedData[item.fecha]) {
+                    groupedData[item.fecha] = {};
+                }
+                groupedData[item.fecha][item.tipo] = item.tiempo;
+            });
+            
+            const dates = Object.keys(groupedData).sort();
+            const idaTimes = dates.map(date => groupedData[date].ida || null);
+            const vueltaTimes = dates.map(date => groupedData[date].vuelta || null);
+            
+            if (chart) {
+                chart.destroy();
+            }
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates.map(date => {
+                        const d = new Date(date);
+                        return d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+                    }),
+                    datasets: [{
+                        label: 'Tiempo Ida (min)',
+                        data: idaTimes,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }, {
+                        label: 'Tiempo Vuelta (min)',
+                        data: vueltaTimes,
+                        borderColor: '#764ba2',
+                        backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#764ba2',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Evolución de Tiempos de Viaje',
+                            font: {
+                                size: 16,
+                                weight: '600'
+                            },
+                            padding: 20
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Tiempo (minutos)',
+                                font: {
+                                    weight: '500'
+                                }
+                            },
+                            ticks: {
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Fecha',
+                                font: {
+                                    weight: '500'
+                                }
+                            },
+                            ticks: {
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    elements: {
+                        point: {
+                            hoverRadius: 8
+                        }
+                    }
+                }
+            });
+        }
+
+        // Cargar datos iniciales para el gráfico
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-cargar estadísticas si hay datos
+            const stored = JSON.parse(localStorage.getItem('travelData') || '[]');
+            if (stored.length > 0) {
+                setTimeout(() => {
+                    loadChartData();
+                }, 500);
+            }
+        });
+    </script>
+</body>
+</html>
